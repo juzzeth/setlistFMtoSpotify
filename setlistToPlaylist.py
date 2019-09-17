@@ -43,7 +43,7 @@ def get_tracks(setURL, songArray):
 
     return songArray
 
-username = '1236988197' #spotify user ID
+username = config.username #spotify user ID
 token = util.prompt_for_user_token(username,'playlist-modify-private',client_id=config.id,client_secret=config.secret,redirect_uri='http://localhost')
 
 if token:
