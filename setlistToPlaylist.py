@@ -1,47 +1,21 @@
-import sys
 import config
+import requests
+from bs4 import BeautifulSoup
 import spotipy
 import spotipy.util as util
-from html.parser import HTMLParser
-import urllib.request as urllib2
 
-def get_tracks(setURL, songArray):
+def get_tracks(setURL, tracks):
+    page = requests.get(setURL)
+    if page.status_code == 404:
+        print("Page not found! Please check the setlist URL.")
+        raise SystemExit(0)
 
-    class songParser(HTMLParser):
+    soup = BeautifulSoup(page.text, "html.parser")
 
-        def __init__(self):
-            HTMLParser.__init__(self)
-            self.inLink = False
-            self.dataArray = []
-            self.countSongs = 0
-            self.lasttag = None
-            self.lastname = None
-            self.lastvalue = None
+    for track in soup.findAll("a", class_="songLabel"):
+        tracks.append(track.text.strip())
 
-        def handle_starttag(self, tag, attrs):
-            self.inLink = False
-            if tag == 'a':
-                for name, value in attrs:
-                    if name == 'class' and value == 'songLabel': # this is what the songs are classed as, if this changes, script breaks
-                        self.countSongs += 1
-                        self.inLink = True
-                        self.lasttag = tag
-
-        def handle_endtag(self, tag):
-            if tag == "a":
-                self.inlink = False
-
-        def handle_data(self, data):
-            if self.lasttag == 'a' and data != '\\n' and self.inLink and data.strip():
-                songArray.append(data)
-
-    parser = songParser()
-
-    html_page = urllib2.urlopen(setURL)
-
-    parser.feed(str(html_page.read()))
-
-    return songArray
+    return tracks
 
 username = config.username #spotify user ID
 token = util.prompt_for_user_token(username,'playlist-modify-private',client_id=config.id,client_secret=config.secret,redirect_uri='http://localhost')
@@ -61,13 +35,9 @@ if token:
     # return playlist ID after it is created so we can add to it
     playlistID = playlistResult['id']
 
-    # set artist detail
-    
-
-    # set track, this will be a loop eventually
-    songArray = []
-    songArray = get_tracks(setlistURL, songArray)
-    for track in songArray:
+    tracks = []
+    tracks = get_tracks(setlistURL, tracks)
+    for track in tracks:
         track = track.replace("'","")
         results = sp.search(q='artist:' + artist + ' track:' + track, type='track', limit='1')
         item = results['tracks']['items']
@@ -76,10 +46,11 @@ if token:
             trackID = track['id']
             trackList.append(trackID)
 
-    print (songArray)
+    print (tracks)
     print
-    print ("Your playlist has been created")
     sp.user_playlist_add_tracks(username, playlistID, trackList)
+    print ("Your playlist has been created")
+    
 
 else:
     print ("Can't get token for", username)
